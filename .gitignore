@@ -1,0 +1,80 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# MongoDB data files & locks (in root or backend)
+*.wt
+WiredTiger*
+mongod.lock
+_mdb_catalog.wt
+sizeStorer.wt
+storage.bson
+diagnostic.data/
+journal/
+mongodb_data/
+
+# Uploads (user-generated files)
+uploads/*
+!uploads/.gitkeep
+!uploads/projects/.gitkeep
+!uploads/studyrooms/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/projects/.gitkeep
+!backend/uploads/studyrooms/.gitkeep
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs & temp files
+logs/
+*.log
+tmp/
+temp/
+powershell.bat
+**/powershell.bat
+fe.txt
+structure.txt
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+
+# Python & virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+venv2/
+ENV/
+*.sqlite3
+*.db
+local_rag_python/db/
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+*.backup

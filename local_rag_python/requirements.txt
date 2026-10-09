@@ -1,0 +1,6 @@
+flask
+chromadb
+gpt4all
+pypdf
+sentence-transformers
+numpy

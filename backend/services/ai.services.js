@@ -1,0 +1,600 @@
+import dotenv from 'dotenv';
+dotenv.config();
+import Groq from 'groq-sdk';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import fs from 'fs';
+import path from 'path';
+import fetch from 'node-fetch'; // Requires node-fetch or native fetch in Node 18+
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Feature-specific API keys with dynamic resolution
+export const getFeatureKey = (feature) => {
+    switch (feature) {
+        case 'STUDY_ROOM':
+            return process.env.STUDY_ROOM_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GROQ_API_KEY;
+        case 'MOCK_INTERVIEW':
+            return process.env.MOCK_INTERVIEW_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GROQ_API_KEY;
+        case 'QUIZ':
+            return process.env.QUIZ_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GROQ_API_KEY;
+        default:
+            return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GROQ_API_KEY;
+    }
+};
+
+const FEATURE_KEYS = new Proxy({}, {
+    get: (_, prop) => getFeatureKey(prop)
+});
+
+const isGeminiKey = (key) => Boolean(
+    key && (
+        key.startsWith('AIza') ||
+        key.startsWith('AQ.') ||
+        key === process.env.GEMINI_API_KEY ||
+        key === process.env.GOOGLE_API_KEY ||
+        !key.startsWith('gsk_')
+    )
+);
+
+console.log('🔑 Feature-specific API keys loaded:');
+console.log(`   - Study Rooms: ${FEATURE_KEYS.STUDY_ROOM ? '✓' : '✗'} (${isGeminiKey(FEATURE_KEYS.STUDY_ROOM) ? 'Gemini' : 'Groq'})`);
+console.log(`   - Mock Interviews: ${FEATURE_KEYS.MOCK_INTERVIEW ? '✓' : '✗'} (${isGeminiKey(FEATURE_KEYS.MOCK_INTERVIEW) ? 'Gemini' : 'Groq'})`);
+console.log(`   - Quiz: ${FEATURE_KEYS.QUIZ ? '✓' : '✗'} (${isGeminiKey(FEATURE_KEYS.QUIZ) ? 'Gemini' : 'Groq'})`);
+
+// Rate limiting configuration
+const MIN_REQUEST_INTERVAL = 5000; // 5 seconds between requests per feature
+const MAX_PROMPT_LENGTH = 2000; // Max characters to prevent token explosion
+
+// Separate queues for each feature
+const featureQueues = {
+    STUDY_ROOM: [],
+    MOCK_INTERVIEW: [],
+    QUIZ: [],
+    DEFAULT: []
+};
+
+const featureProcessing = {
+    STUDY_ROOM: false,
+    MOCK_INTERVIEW: false,
+    QUIZ: false,
+    DEFAULT: false
+};
+
+const processQueue = async (feature) => {
+    if (featureProcessing[feature] || featureQueues[feature].length === 0) return;
+
+    featureProcessing[feature] = true;
+    const { prompt, messages, resolve, reject } = featureQueues[feature].shift();
+
+    try {
+        // Execute either prompt-based or message-based request
+        const result = messages
+            ? await executeChatRequest(messages, feature)
+            : await executeAIRequest(prompt, feature);
+        resolve(result);
+    } catch (error) {
+        reject(error);
+    } finally {
+        featureProcessing[feature] = false;
+
+        // Process next request after interval
+        if (featureQueues[feature].length > 0) {
+            setTimeout(() => processQueue(feature), MIN_REQUEST_INTERVAL);
+        }
+    }
+};
+
+const executeAIRequest = async (prompt, feature) => {
+    const apiKey = FEATURE_KEYS[feature] || FEATURE_KEYS.DEFAULT;
+
+    if (!apiKey) {
+        throw new Error('No API key configured for this feature');
+    }
+
+    if (isGeminiKey(apiKey)) {
+        console.log(`🔑 Using ${feature} with Google Gemini AI`);
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+        let model;
+        try {
+            model = genAI.getGenerativeModel({ model: modelName });
+        } catch (e) {
+            model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        }
+
+        try {
+            console.log(`Prompt length: ${prompt.length} characters`);
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text() || '';
+            console.log(`✅ Success with Gemini (${modelName}) for ${feature}`);
+            return text;
+        } catch (error) {
+            console.log(`❌ Failed with ${modelName}: ${error.message}, trying gemini-flash-latest...`);
+            try {
+                const fallback = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+                const result = await fallback.generateContent(prompt);
+                const response = await result.response;
+                const text = response.text() || '';
+                console.log(`✅ Success with Gemini (gemini-flash-latest) for ${feature}`);
+                return text;
+            } catch (fbErr) {
+                if (fbErr.message.includes('429') || fbErr.message.includes('rate limit')) {
+                    throw new Error(`RATE_LIMIT:60:${feature}`);
+                }
+                throw new Error(`AI_ERROR:${fbErr.message}`);
+            }
+        }
+    }
+
+    console.log(`🔑 Using ${feature} with Groq AI`);
+
+    // Initialize Groq client
+    const groq = new Groq({ apiKey });
+
+    // Try models in order of preference (fastest to most capable)
+    const models = [
+        'llama-3.3-70b-versatile',  // Fastest, great for general tasks
+        'llama-3.1-70b-versatile',  // Very capable
+        'mixtral-8x7b-32768'        // Good for longer context
+    ];
+
+    let lastError = null;
+
+    for (const modelName of models) {
+        try {
+            console.log(`Trying Groq model: ${modelName}...`);
+            console.log(`Prompt length: ${prompt.length} characters`);
+
+            const chatCompletion = await groq.chat.completions.create({
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                model: modelName,
+                temperature: 0.7,
+                max_tokens: 1024,
+            });
+
+            const text = chatCompletion.choices[0]?.message?.content || '';
+
+            console.log(`✅ Success with ${modelName} for ${feature}`);
+            return text;
+
+        } catch (error) {
+            console.log(`❌ Failed with ${modelName}: ${error.message}`);
+            lastError = error;
+
+            // Check if it's a rate limit error
+            if (error.message.includes('429') ||
+                error.message.includes('rate limit')) {
+
+                const waitSeconds = 60; // Default wait time
+                throw new Error(`RATE_LIMIT:${waitSeconds}:${feature}`);
+            }
+
+            // Try next model on error
+            if (modelName === models[models.length - 1]) {
+                throw new Error(`AI_ERROR:${error.message}`);
+            }
+        }
+    }
+
+    // If all models failed
+    throw lastError || new Error('All AI models failed');
+};
+
+// Execute chat request with messages array
+const executeChatRequest = async (messages, feature) => {
+    const apiKey = FEATURE_KEYS[feature] || FEATURE_KEYS.DEFAULT;
+
+    if (!apiKey) {
+        throw new Error('No API key configured for this feature');
+    }
+
+    if (isGeminiKey(apiKey)) {
+        console.log(`🔑 Using ${feature} chat with Google Gemini AI`);
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+        const prompt = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+
+        let model;
+        try {
+            model = genAI.getGenerativeModel({ model: modelName });
+        } catch (e) {
+            model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        }
+
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            return response.text() || '';
+        } catch (error) {
+            console.log(`❌ Failed chat with ${modelName}: ${error.message}, trying gemini-flash-latest...`);
+            try {
+                const fallback = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+                const result = await fallback.generateContent(prompt);
+                const response = await result.response;
+                return response.text() || '';
+            } catch (fbErr) {
+                if (fbErr.message.includes('429') || fbErr.message.includes('rate limit')) {
+                    throw new Error(`RATE_LIMIT:60:${feature}`);
+                }
+                throw new Error(`AI_ERROR:${fbErr.message}`);
+            }
+        }
+    }
+
+    console.log(`🔑 Using ${feature} chat with Groq AI`);
+
+    // Initialize Groq client
+    const groq = new Groq({ apiKey });
+
+    // Try models in order
+    const models = [
+        'llama-3.3-70b-versatile',
+        'llama-3.1-70b-versatile',
+        'mixtral-8x7b-32768'
+    ];
+
+    let lastError = null;
+
+    for (const modelName of models) {
+        try {
+            console.log(`Trying Groq chat model: ${modelName}...`);
+            console.log(`Messages count: ${messages.length}`);
+
+            const chatCompletion = await groq.chat.completions.create({
+                messages: messages,
+                model: modelName,
+                temperature: 0.8,
+                max_tokens: 512,
+            });
+
+            const text = chatCompletion.choices[0]?.message?.content || '';
+
+            console.log(`✅ Success with ${modelName}`);
+            return text;
+
+        } catch (error) {
+            console.log(`❌ Failed with ${modelName}: ${error.message}`);
+            lastError = error;
+
+            if (error.message.includes('429') || error.message.includes('rate limit')) {
+                const waitSeconds = 60;
+                throw new Error(`RATE_LIMIT:${waitSeconds}:${feature}`);
+            }
+
+            if (modelName === models[models.length - 1]) {
+                throw new Error(`AI_ERROR:${error.message}`);
+            }
+        }
+    }
+
+    throw lastError || new Error('All AI models failed');
+};
+
+export const generateResult = async (prompt, feature = 'DEFAULT') => {
+    // Truncate prompt if too long
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+        console.warn(`⚠️ Prompt truncated from ${prompt.length} to ${MAX_PROMPT_LENGTH} chars`);
+        prompt = prompt.substring(0, MAX_PROMPT_LENGTH) + '\n...[truncated]';
+    }
+
+    return new Promise((resolve, reject) => {
+        const queuePosition = featureQueues[feature].length + 1;
+
+        if (queuePosition > 1) {
+            console.log(`📋 ${feature} request queued at position ${queuePosition}`);
+        }
+
+        featureQueues[feature].push({
+            prompt,
+            resolve,
+            reject: (error) => {
+                if (error.message?.startsWith('RATE_LIMIT:')) {
+                    const [_, seconds, feat] = error.message.split(':');
+                    reject(new Error(`Rate limit hit for ${feat}. Please wait ${seconds} seconds and try again.`));
+                } else if (error.message?.startsWith('AI_ERROR:')) {
+                    const msg = error.message.replace('AI_ERROR:', '');
+                    reject(new Error(`AI service error: ${msg}`));
+                } else {
+                    reject(error);
+                }
+            }
+        });
+
+        processQueue(feature);
+    });
+};
+
+// New function for chat-based completions with conversation history
+export const generateChatCompletion = async (conversationHistory, userMessage, systemPrompt, feature = 'DEFAULT') => {
+    // Build messages array for Groq chat API
+    const messages = [];
+
+    // Add system message if provided
+    if (systemPrompt) {
+        messages.push({
+            role: 'system',
+            content: systemPrompt
+        });
+    }
+
+    // Add conversation history
+    if (conversationHistory && conversationHistory.length > 0) {
+        conversationHistory.forEach(msg => {
+            messages.push({
+                role: msg.role === 'user' ? 'user' : 'assistant',
+                content: msg.content
+            });
+        });
+    }
+
+    // Add current user message
+    messages.push({
+        role: 'user',
+        content: userMessage
+    });
+
+    console.log(`📝 Queueing chat with ${messages.length} messages for ${feature}`);
+
+    // Use the queue system with messages instead of prompt
+    return new Promise((resolve, reject) => {
+        const queuePosition = featureQueues[feature].length + 1;
+
+        if (queuePosition > 1) {
+            console.log(`📋 ${feature} chat queued at position ${queuePosition}`);
+        }
+
+        featureQueues[feature].push({
+            messages,  // Pass messages instead of prompt
+            resolve,
+            reject: (error) => {
+                if (error.message?.startsWith('RATE_LIMIT:')) {
+                    const [_, seconds, feat] = error.message.split(':');
+                    reject(new Error(`Rate limit hit for ${feat}. Please wait ${seconds} seconds and try again.`));
+                } else if (error.message?.startsWith('AI_ERROR:')) {
+                    const msg = error.message.replace('AI_ERROR:', '');
+                    reject(new Error(`AI service error: ${msg}`));
+                } else {
+                    reject(error);
+                }
+            }
+        });
+
+        processQueue(feature);
+    });
+};
+
+/**
+ * Generate structured JSON response for feedback
+ */
+export const generateJSONFeedback = async (prompt, feature = 'MOCK_INTERVIEW') => {
+    const apiKey = FEATURE_KEYS[feature] || FEATURE_KEYS.DEFAULT;
+
+    if (!apiKey) {
+        throw new Error('No API key configured for this feature');
+    }
+
+    if (isGeminiKey(apiKey)) {
+        console.log(`🎯 Generating JSON feedback with Gemini for ${feature}`);
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+        const jsonPrompt = `${prompt}\n\nIMPORTANT: Return valid raw JSON object only. Do not include markdown formatting or codeblocks.`;
+        try {
+            let model;
+            try {
+                model = genAI.getGenerativeModel({ model: modelName });
+            } catch (e) {
+                model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+            }
+            const res = await model.generateContent(jsonPrompt);
+            let text = res.response.text();
+            text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) text = jsonMatch[0];
+            return JSON.parse(text);
+        } catch (err) {
+            console.error('❌ JSON feedback generation failed with Gemini, trying fallback:', err.message);
+            const fallback = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+            const res = await fallback.generateContent(jsonPrompt);
+            let text = res.response.text();
+            text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) text = jsonMatch[0];
+            return JSON.parse(text);
+        }
+    }
+
+    console.log(`🎯 Generating JSON feedback with ${feature}`);
+
+    const groq = new Groq({ apiKey });
+
+    try {
+        // Use llama-3.3-70b-versatile with JSON mode
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a technical interview evaluator. Always respond with valid JSON only, no additional text or formatting.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.5, // Lower temperature for more consistent JSON
+            max_tokens: 2048,
+            response_format: { type: "json_object" } // Force JSON response
+        });
+
+        const jsonText = chatCompletion.choices[0]?.message?.content || '{}';
+        console.log('✅ JSON feedback generated');
+
+        // Parse and return
+        return JSON.parse(jsonText);
+
+    } catch (error) {
+        console.error('❌ JSON feedback generation failed:', error.message);
+        throw error;
+    }
+};
+
+/**
+ * Generate Quiz from Document Content using Gemini
+ */
+export const generateQuizService = async (file, numQuestions = 5) => {
+    try {
+        let textContent = '';
+
+        // 1. Extract Text based on file type
+        if (file.mimetype === 'application/pdf') {
+            const buffer = file.buffer;
+            const data = await pdfParse(buffer);
+            textContent = data.text;
+        } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+            const result = await mammoth.extractRawText({ buffer: file.buffer });
+            textContent = result.value;
+        } else if (file.mimetype === 'text/plain' || file.originalname.endsWith('.txt')) {
+            textContent = file.buffer.toString('utf-8');
+        } else {
+            throw new Error('Unsupported file type. Please upload PDF, DOCX, or TXT.');
+        }
+
+        // Limit text content for simple RAG (Context Stuffing)
+        // Gemini 1.5 Flash has a large context window, but let's be safe/efficient
+        const MAX_CONTEXT_CHARS = 30000;
+        if (textContent.length > MAX_CONTEXT_CHARS) {
+            textContent = textContent.substring(0, MAX_CONTEXT_CHARS) + " ...[truncated]";
+        }
+
+        // 2. Call Gemini API
+        // Use the Gemini/Quiz key or fall back to default
+        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || FEATURE_KEYS.QUIZ || FEATURE_KEYS.DEFAULT;
+        if (!apiKey) throw new Error('No API Key configured for Quiz generation');
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        // Use user-specified model or default
+        const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+        console.log(`Using Gemini Model: ${modelName}`);
+        let model;
+        try {
+            model = genAI.getGenerativeModel({ model: modelName });
+        } catch (mErr) {
+            console.warn(`Failed to initialize ${modelName}, falling back to gemini-flash-latest:`, mErr.message);
+            model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        }
+
+        const prompt = `
+        You are an expert educational assistant. Create a multiple-choice quiz based ONLY on the following text.
+        
+        Text Content:
+        "${textContent}"
+
+        Requirements:
+        1. Generate ${numQuestions} questions.
+        2. Provide 4 options for each question.
+        3. Indicate the correct answer.
+        4. Return the result as a strict JSON array of objects.
+        
+        JSON Structure:
+        [
+          {
+            "question": "Question text here?",
+            "options": ["Option A", "Option B", "Option C", "Option D"],
+            "answer": "Correct Option Text (must match one of the options exactly)"
+          }
+        ]
+        
+        Do not include markdown formatting (like \`\`\`json). Return raw JSON only.
+        `;
+
+        let text = '';
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            text = response.text();
+        } catch (genErr) {
+            console.warn(`Generation failed with ${modelName}, trying gemini-flash-latest:`, genErr.message);
+            const fallbackModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+            const result = await fallbackModel.generateContent(prompt);
+            const response = await result.response;
+            text = response.text();
+        }
+
+        // Cleanup markdown if present
+        text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+            text = jsonMatch[0];
+        }
+
+        return JSON.parse(text);
+
+    } catch (error) {
+        console.error('Quiz Generation Error:', error);
+        throw new Error(`Failed to generate quiz: ${error.message}`);
+    }
+};
+
+/**
+ * Generate Quiz using Local Python RAG Service
+ */
+export const generateQuizLocal = async (file, numQuestions = 5) => {
+    try {
+        // 1. Save file temporarily
+        const tempDir = path.join(__dirname, '../uploads/temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        const tempFilePath = path.join(tempDir, `temp_${Date.now()}_${file.originalname}`);
+        fs.writeFileSync(tempFilePath, file.buffer);
+
+        console.log(`Saved temp file for RAG: ${tempFilePath}`);
+
+        // 2. Call Python Flask API
+        try {
+            const response = await fetch('http://127.0.0.1:5000/generate-quiz', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    file_path: tempFilePath,
+                    num_questions: numQuestions
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Python API error: ${response.statusText}`);
+            }
+
+            const quizData = await response.json();
+            return quizData;
+
+        } finally {
+            // 3. Cleanup temp file
+            try {
+                if (fs.existsSync(tempFilePath)) {
+                    fs.unlinkSync(tempFilePath);
+                    console.log(`Cleaned up temp file: ${tempFilePath}`);
+                }
+            } catch (cleanupError) {
+                console.error('Failed to cleanup temp file:', cleanupError);
+            }
+        }
+
+    } catch (error) {
+        console.error('Local Quiz Generation Error:', error);
+        throw new Error(`Failed to generate local quiz: ${error.message}`);
+    }
+};

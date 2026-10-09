@@ -1,0 +1,22 @@
+{
+  "watch": [
+    "server.js",
+    "app.js",
+    "routes/",
+    "controllers/",
+    "services/",
+    "models/",
+    "modules/",
+    ".env"
+  ],
+  "ignore": [
+    "uploads/*",
+    "mongodb_data/*",
+    "diagnostic.data/*",
+    "journal/*",
+    "*.wt",
+    "WiredTiger*",
+    "*.lock"
+  ],
+  "ext": "js,mjs,cjs,json"
+}
