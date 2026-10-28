@@ -193,7 +193,7 @@ const pyqSchema = new mongoose.Schema({
     }],
     evidenceLevel: {
         type: String,
-        enum: ['HIGH_CONFIDENCE', 'MEDIUM_CONFIDENCE', 'EMERGING_TREND', 'VERIFIED_HISTORICAL', ''],
+        enum: ['HIGH_CONFIDENCE', 'MEDIUM_CONFIDENCE', 'EMERGING_TREND', 'VERIFIED_HISTORICAL', 'INSUFFICIENT_DATA', ''],
         default: ''
     },
 

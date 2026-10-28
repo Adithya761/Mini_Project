@@ -320,19 +320,32 @@ const PYQPredict = ({ existingSubjects = [], onQuestionAdded, onSwitchToBank }) 
                     {q.evidenceLevel === 'HIGH_CONFIDENCE' && (
                       <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm flex items-center gap-1.5">
                         <i className="ri-shield-check-fill text-emerald-600"></i>
-                        High Confidence Pattern
+                        {q.confidenceLabel || 'High Historical Recurrence'}
                       </span>
                     )}
                     {q.evidenceLevel === 'MEDIUM_CONFIDENCE' && (
                       <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 shadow-sm flex items-center gap-1.5">
                         <i className="ri-line-chart-fill text-indigo-600"></i>
-                        Medium Confidence Pattern
+                        {q.confidenceLabel || 'Moderate Historical Recurrence'}
+                      </span>
+                    )}
+                    {q.evidenceLevel === 'INSUFFICIENT_DATA' && (
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 shadow-sm flex items-center gap-1.5">
+                        <i className="ri-information-line text-slate-500"></i>
+                        {q.confidenceLabel || 'Insufficient Historical Data'}
                       </span>
                     )}
                     {(!q.evidenceLevel || q.evidenceLevel === 'EMERGING_TREND') && (
                       <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm flex items-center gap-1.5">
                         <i className="ri-flashlight-fill text-amber-600"></i>
-                        Curricular Trend
+                        {q.confidenceLabel || 'Emerging or Limited Evidence'}
+                      </span>
+                    )}
+
+                    {/* Match Classification Badge */}
+                    {q.matchType && (
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        {q.matchType}
                       </span>
                     )}
 
@@ -408,6 +421,13 @@ const PYQPredict = ({ existingSubjects = [], onQuestionAdded, onSwitchToBank }) 
                       <span className="font-bold">Recurrence Pattern: </span>
                       <span>{q.predictionReasoning}</span>
                     </div>
+                  </div>
+                )}
+
+                {q.metadataLimitations && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 my-2 text-xs text-slate-600 flex items-start gap-2">
+                    <i className="ri-information-line text-slate-400 text-sm mt-0.5"></i>
+                    <span>{q.metadataLimitations}</span>
                   </div>
                 )}
 
