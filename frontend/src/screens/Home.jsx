@@ -71,24 +71,24 @@ const Home = () => {
         </div>
 
         {/* Module Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {/* Study Rooms Card */}
           <div
             onClick={() => navigate('/studyrooms')}
-            className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-indigo-500"
+            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-indigo-500 flex flex-col justify-between"
           >
             <div className="flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
                 <i className="ri-team-line text-3xl text-indigo-600"></i>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Study Rooms</h3>
-              <p className="text-gray-600 mb-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Study Rooms</h3>
+              <p className="text-gray-600 text-sm mb-4">
                 Collaborate with peers in real-time study sessions with chat and whiteboard
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm">Real-time Chat</span>
-                <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm">Whiteboard</span>
-                <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm">File Sharing</span>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">Real-time Chat</span>
+                <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">Whiteboard</span>
+                <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">File Sharing</span>
               </div>
             </div>
           </div>
@@ -96,20 +96,44 @@ const Home = () => {
           {/* Quiz Generator Card */}
           <div
             onClick={() => navigate('/quiz')}
-            className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-green-500"
+            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-green-500 flex flex-col justify-between"
           >
             <div className="flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <i className="ri-question-answer-line text-3xl text-green-600"></i>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Quiz Generator</h3>
-              <p className="text-gray-600 mb-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Quiz Generator</h3>
+              <p className="text-gray-600 text-sm mb-4">
                 Upload PDFs and generate AI-powered quizzes to test your knowledge
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">PDF Upload</span>
-                <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">AI Generation</span>
-                <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">Auto Grading</span>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                <span className="px-2.5 py-0.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">PDF Upload</span>
+                <span className="px-2.5 py-0.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">AI Generation</span>
+                <span className="px-2.5 py-0.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">Auto Grading</span>
+              </div>
+            </div>
+          </div>
+
+          {/* PYQs & Predictor Card */}
+          <div
+            onClick={() => navigate('/pyqs')}
+            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-purple-500 flex flex-col justify-between"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4 relative">
+                <i className="ri-book-read-line text-3xl text-purple-600"></i>
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold">
+                  AI
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">PYQs & Predictor</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Subject-wise previous year questions and AI-predicted exam questions
+              </p>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">Subject-Wise</span>
+                <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">AI Predictor</span>
+                <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">Model Answers</span>
               </div>
             </div>
           </div>
@@ -117,20 +141,20 @@ const Home = () => {
           {/* Mock Interview Card */}
           <div
             onClick={() => navigate('/interview')}
-            className="bg-white rounded-xl shadow-lg p-8 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-orange-500"
+            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-orange-500 flex flex-col justify-between"
           >
             <div className="flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
                 <i className="ri-user-voice-line text-3xl text-orange-600"></i>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Mock Interview</h3>
-              <p className="text-gray-600 mb-4">
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Mock Interview</h3>
+              <p className="text-gray-600 text-sm mb-4">
                 Practice interviews with AI interviewer and get instant feedback
               </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <span className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-sm">AI Interviewer</span>
-                <span className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-sm">Real-time Feedback</span>
-                <span className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-sm">Multiple Domains</span>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                <span className="px-2.5 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">AI Interviewer</span>
+                <span className="px-2.5 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">Feedback</span>
+                <span className="px-2.5 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">Domains</span>
               </div>
             </div>
           </div>

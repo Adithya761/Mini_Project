@@ -5,7 +5,25 @@
 - MongoDB running locally or connection string available
 - Ports 3000 (backend) and 5174 (frontend) available
 
-## Setup & Run
+## ⚡ One-Click Run (Recommended)
+No need to run individual commands. Simply:
+- **Double click `run.bat`** in this project folder, OR
+- In terminal, execute:
+  ```powershell
+  .\run.bat
+  ```
+  *(or `.\run.ps1` or `npm start`)*
+
+This automatically checks MongoDB, verifies dependencies, starts both Backend (port 3000) and Frontend (port 5173), and opens your browser.
+
+To stop everything:
+```powershell
+.\stop.bat
+```
+
+---
+
+## Manual Setup & Run
 
 ### 1. Backend Setup
 ```powershell
@@ -22,7 +40,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Frontend will run on `http://localhost:5174`
+Frontend will run on `http://localhost:5173`
 
 ## Environment Variables
 

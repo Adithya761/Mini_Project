@@ -38,6 +38,14 @@ const LandingPage = () => {
             color: 'text-orange-600',
             bgColor: 'bg-orange-100',
             borderColor: 'border-orange-500'
+        },
+        {
+            icon: 'ri-book-read-line',
+            title: 'PYQs & AI Predictor',
+            description: 'Subject-wise previous year questions with model answers and AI-driven exam question prediction.',
+            color: 'text-purple-600',
+            bgColor: 'bg-purple-100',
+            borderColor: 'border-purple-500'
         }
     ];
 
@@ -130,7 +138,7 @@ const LandingPage = () => {
 
             {/* Features Section */}
             <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative z-10">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {features.map((feature, index) => (
                         <motion.div
                             key={index}

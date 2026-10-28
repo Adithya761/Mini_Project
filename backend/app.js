@@ -1,4 +1,10 @@
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 dotenv.config();
 import express from 'express';
 import morgan from 'morgan';
@@ -14,6 +20,7 @@ import messageRoutes from './routes/message.routes.js';
 import studyroomRoutes from './routes/studyroom.routes.js';
 import quizRoutes from './modules/quiz/routes/quiz.routes.js';
 import interviewRoutes from './modules/interview/routes/interview.routes.js';
+import pyqRoutes from './modules/pyq/routes/pyq.routes.js';
 
 connect();
 
@@ -78,5 +85,7 @@ app.use('/studyroom', studyroomRoutes);
 // ========================================
 app.use('/quiz', quizRoutes);
 app.use('/api/interview', interviewRoutes);
+app.use('/pyq', pyqRoutes);
+app.use('/api/pyq', pyqRoutes);
 
 export default app;

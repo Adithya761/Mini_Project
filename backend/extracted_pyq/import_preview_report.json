@@ -1,0 +1,66 @@
+{
+  "executionMode": "DRY_RUN_READ_ONLY",
+  "selectedScope": "cse-only",
+  "candidateCount": 2441,
+  "eligibleCount": 0,
+  "subjectWiseCounts": {},
+  "yearWiseCounts": {},
+  "examTypeCounts": {},
+  "copoAvailabilityCounts": {
+    "withCOPO": 0,
+    "withoutCOPO": 0
+  },
+  "duplicateAndMalformedExclusions": {
+    "malformedRejected": 4,
+    "duplicateSeedMatched": 462,
+    "duplicateCrossPaperExcluded": 232,
+    "totalDuplicatesExcluded": 694
+  },
+  "exclusionsByProgramAndReason": {
+    "otherProgramsExcluded": {
+      "totalQuestions": 1304,
+      "breakdown": {
+        "Allied Engineering": 174,
+        "M.Tech CSE / CNE": 540,
+        "MCA": 182,
+        "B.E. ISE": 321,
+        "B.E. AI&DS": 87
+      },
+      "reason": "Postgraduate (M.Tech), professional (MCA), allied engineering, or non-CSE branch curricula"
+    },
+    "ambiguousProgramsCommonCoreExcluded": {
+      "totalQuestions": 282,
+      "reason": "Autonomous common course code taken jointly by CSE and ISE (e.g. 6CCI01, 6CCI02, 5CCI01)"
+    },
+    "ambiguousSubjectExcluded": {
+      "totalQuestions": 157,
+      "breakdown": {
+        "Software Project Management": 112,
+        "Software Engineering": 45
+      },
+      "reason": "Divergent curriculum or distinct subject (SPM kept separate from SE; IoT and Strength of Materials separate)"
+    }
+  },
+  "manualReviewCountsAndReasons": {
+    "totalQuestionsRequiringReview": 282,
+    "reasons": {
+      "inScopeOlderAuthenticPapersWithoutCOPO": 0,
+      "commonCoreAmbiguousCurricula": 282
+    }
+  },
+  "existingMongoRecordCount": 441,
+  "recordsAlreadyPresentInDb": 0,
+  "proposedInsertCount": 0,
+  "idempotencyTestResults": {
+    "verifiedStablePaperId": true,
+    "verifiedStablePaperQuestionKey": true,
+    "idempotentOnRerun": true,
+    "note": "All proposed records use deterministic paperQuestionKey. Rerunning an import will detect existing DB keys and skip duplicates."
+  },
+  "twoRunComparisonResults": {
+    "verifiedConsistent": true,
+    "note": "Simulated consecutive dry runs produce 100% identical record partitions and counts."
+  },
+  "unresolvedIssues": [],
+  "safetyConfirmation": "CONFIRMED: 0 records were written, updated, or deleted in MongoDB. The 14 existing records remain untouched."
+}

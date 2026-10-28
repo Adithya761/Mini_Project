@@ -16,6 +16,7 @@ import MockInterviewFeedback from '../pages/mock-interview/MockInterviewFeedback
 import UserAuth from '../auth/userAuth';
 import Profile from '../screens/Profile';
 import QuizResultView from '../screens/QuizResultView';
+import PYQs from '../screens/PYQs';
 
 const AppRoutes = () => {
   return (
@@ -37,6 +38,11 @@ const AppRoutes = () => {
 
         {/* Quiz Module */}
         <Route path="/quiz" element={<UserAuth><Quiz /></UserAuth>} />
+
+        {/* PYQ Bank, Introduction Portal & AI Predictor Module */}
+        <Route path="/pyqs" element={<UserAuth><PYQs /></UserAuth>} />
+        <Route path="/pyq-portal" element={<UserAuth><PYQs /></UserAuth>} />
+        <Route path="/predict-pyqs" element={<UserAuth><PYQs /></UserAuth>} />
 
         {/* Interview Module */}
         <Route path="/interview" element={<UserAuth><Interview /></UserAuth>} />

@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-10-27T18:07:04.849Z",
+  "inputDirectory": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers",
+  "outputDirectory": "C:\\Adithya\\Mini_Project\\eco\\backend\\extracted_pyq",
+  "statistics": {
+    "totalDiscovered": 98,
+    "scannedCount": 9,
+    "textParsedCount": 89,
+    "totalQuestions": 2441,
+    "questionsWithCOPO": 1240,
+    "questionsWithoutCOPO": 1201,
+    "questionsNeedingReview": 1229,
+    "bySubject": {
+      "Software Engineering": 511,
+      "Computer Networks": 601,
+      "Database Management Systems": 575,
+      "Operating Systems": 642,
+      "Software Project Management": 112
+    },
+    "byYear": {
+      "2010": 68,
+      "2011": 92,
+      "2012": 21,
+      "2013": 17,
+      "2014": 15,
+      "2015": 17,
+      "2016": 30,
+      "2017": 23,
+      "2019": 179,
+      "2020": 122,
+      "2021": 414,
+      "2022": 593,
+      "2023": 31,
+      "2024": 281,
+      "2025": 420,
+      "2026": 60,
+      "Unknown Year": 58
+    }
+  },
+  "scannedFiles": [
+    {
+      "fileName": "124856_N1LDC02.pdf",
+      "subject": "Computer_Networks",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\Computer_Networks\\Unknown_Year\\124856_N1LDC02.pdf"
+    },
+    {
+      "fileName": "124908_N1SCS01.pdf",
+      "subject": "Computer_Networks",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\Computer_Networks\\Unknown_Year\\124908_N1SCS01.pdf"
+    },
+    {
+      "fileName": "124986_N3MCA03.pdf",
+      "subject": "Computer_Networks",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\Computer_Networks\\Unknown_Year\\124986_N3MCA03.pdf"
+    },
+    {
+      "fileName": "124466_5RCS01.pdf",
+      "subject": "DBMS",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\DBMS\\Unknown_Year\\124466_5RCS01.pdf"
+    },
+    {
+      "fileName": "124510_5RIS02.pdf",
+      "subject": "DBMS",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\DBMS\\Unknown_Year\\124510_5RIS02.pdf"
+    },
+    {
+      "fileName": "125612_N2MC01.pdf",
+      "subject": "DBMS",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\DBMS\\Unknown_Year\\125612_N2MC01.pdf"
+    },
+    {
+      "fileName": "124912_N1SCS03.pdf",
+      "subject": "Operating_Systems",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\Operating_Systems\\Unknown_Year\\124912_N1SCS03.pdf"
+    },
+    {
+      "fileName": "124470_5RCS03.pdf",
+      "subject": "Software_Engineering",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\Software_Engineering\\Unknown_Year\\124470_5RCS03.pdf"
+    },
+    {
+      "fileName": "125616_N2MC03.pdf",
+      "subject": "Software_Engineering",
+      "year": "Unknown_Year",
+      "path": "C:\\Users\\lalit\\PycharmProjects\\SIT_PYQ_Scraper\\downloaded_papers\\Software_Engineering\\Unknown_Year\\125616_N2MC03.pdf"
+    }
+  ]
+}

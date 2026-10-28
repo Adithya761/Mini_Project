@@ -163,7 +163,32 @@ VITE_SOCKET_URL=http://localhost:3000
 
 ## 🏃 Running the Application
 
-### Development Mode
+### ⚡ One-Click Run (Easiest Way)
+
+No need to open multiple terminals or remember any commands:
+- **Windows File Explorer:** Simply double-click **`run.bat`** in the root folder!
+- **Terminal (PowerShell / Command Prompt):**
+  ```powershell
+  .\run.bat
+  ```
+  *(or `.\run.ps1` or `npm start`)*
+
+This script automatically:
+1. Verifies Node.js is installed
+2. Checks & starts MongoDB service if needed
+3. Verifies & installs dependencies if missing
+4. Launches the Backend server on `http://localhost:3000`
+5. Launches the Frontend Vite server on `http://localhost:5173`
+6. Opens your web browser directly to the app!
+
+To stop all running services cleanly at any time, run:
+```powershell
+.\stop.bat
+```
+
+---
+
+### Manual Development Mode
 
 1. **Start MongoDB**
    ```bash

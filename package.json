@@ -1,0 +1,10 @@
+{
+  "name": "eco-platform",
+  "version": "1.0.0",
+  "description": "ECO Collaboration Platform",
+  "scripts": {
+    "start": "cmd /c run.bat",
+    "dev": "cmd /c run.bat",
+    "stop": "cmd /c stop.bat"
+  }
+}
