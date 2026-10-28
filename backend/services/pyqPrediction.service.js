@@ -314,26 +314,33 @@ JSON SCHEMA:
     // Try Gemini
     if (apiKey.startsWith('AIza') || apiKey.startsWith('AQ.') || !apiKey.startsWith('gsk_')) {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-        let model;
-        try {
-            model = genAI.getGenerativeModel({ model: modelName });
-        } catch {
-            model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        }
+        const candidateModels = [
+            process.env.GEMINI_MODEL,
+            'gemini-flash-lite-latest',
+            'gemini-3.1-flash-lite',
+            'gemini-3.5-flash',
+            'gemini-3.8-flash'
+        ].filter(Boolean);
 
-        const result = await Promise.race([
-            model.generateContent(prompt),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini prediction timeout')), 10000))
-        ]);
+        for (const modelName of [...new Set(candidateModels)]) {
+            try {
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await Promise.race([
+                    model.generateContent(prompt),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Gemini prediction timeout')), 10000))
+                ]);
 
-        const response = await result.response;
-        let text = response.text() || '';
-        text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                const response = await result.response;
+                let text = response.text() || '';
+                text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const jsonMatch = text.match(/\[[\s\S]*\]/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                }
+            } catch (gemErr) {
+                console.warn(`Gemini prediction attempt failed with ${modelName}:`, gemErr.message);
+            }
         }
     }
 

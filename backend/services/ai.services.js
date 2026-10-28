@@ -41,6 +41,17 @@ const isGeminiKey = (key) => Boolean(
     )
 );
 
+export const getGeminiCandidateModels = () => {
+    return [...new Set([
+        process.env.GEMINI_MODEL,
+        'gemini-flash-lite-latest',
+        'gemini-3.1-flash-lite',
+        'gemini-3.5-flash',
+        'gemini-3.8-flash',
+        'gemini-flash-latest'
+    ].filter(Boolean))];
+};
+
 console.log('🔑 Feature-specific API keys loaded:');
 console.log(`   - Study Rooms: ${FEATURE_KEYS.STUDY_ROOM ? '✓' : '✗'} (${isGeminiKey(FEATURE_KEYS.STUDY_ROOM) ? 'Gemini' : 'Groq'})`);
 console.log(`   - Mock Interviews: ${FEATURE_KEYS.MOCK_INTERVIEW ? '✓' : '✗'} (${isGeminiKey(FEATURE_KEYS.MOCK_INTERVIEW) ? 'Gemini' : 'Groq'})`);
@@ -99,37 +110,27 @@ const executeAIRequest = async (prompt, feature) => {
     if (isGeminiKey(apiKey)) {
         console.log(`🔑 Using ${feature} with Google Gemini AI`);
         const genAI = new GoogleGenerativeAI(apiKey);
-        const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-        let model;
-        try {
-            model = genAI.getGenerativeModel({ model: modelName });
-        } catch (e) {
-            model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-        }
+        const models = getGeminiCandidateModels();
+        let lastError = null;
 
-        try {
-            console.log(`Prompt length: ${prompt.length} characters`);
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text() || '';
-            console.log(`✅ Success with Gemini (${modelName}) for ${feature}`);
-            return text;
-        } catch (error) {
-            console.log(`❌ Failed with ${modelName}: ${error.message}, trying gemini-flash-latest...`);
+        for (const modelName of models) {
             try {
-                const fallback = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-                const result = await fallback.generateContent(prompt);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                console.log(`Prompt length: ${prompt.length} characters (trying ${modelName})`);
+                const result = await model.generateContent(prompt);
                 const response = await result.response;
                 const text = response.text() || '';
-                console.log(`✅ Success with Gemini (gemini-flash-latest) for ${feature}`);
+                console.log(`✅ Success with Gemini (${modelName}) for ${feature}`);
                 return text;
-            } catch (fbErr) {
-                if (fbErr.message.includes('429') || fbErr.message.includes('rate limit')) {
+            } catch (error) {
+                console.warn(`❌ Failed with ${modelName}: ${error.message}`);
+                lastError = error;
+                if (error.message.includes('429') || error.message.includes('rate limit')) {
                     throw new Error(`RATE_LIMIT:60:${feature}`);
                 }
-                throw new Error(`AI_ERROR:${fbErr.message}`);
             }
         }
+        throw new Error(`AI_ERROR:${lastError?.message || 'All Gemini models failed'}`);
     }
 
     console.log(`🔑 Using ${feature} with Groq AI`);
@@ -202,34 +203,25 @@ const executeChatRequest = async (messages, feature) => {
     if (isGeminiKey(apiKey)) {
         console.log(`🔑 Using ${feature} chat with Google Gemini AI`);
         const genAI = new GoogleGenerativeAI(apiKey);
-        const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+        const models = getGeminiCandidateModels();
         const prompt = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+        let lastError = null;
 
-        let model;
-        try {
-            model = genAI.getGenerativeModel({ model: modelName });
-        } catch (e) {
-            model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-        }
-
-        try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            return response.text() || '';
-        } catch (error) {
-            console.log(`❌ Failed chat with ${modelName}: ${error.message}, trying gemini-flash-latest...`);
+        for (const modelName of models) {
             try {
-                const fallback = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-                const result = await fallback.generateContent(prompt);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent(prompt);
                 const response = await result.response;
                 return response.text() || '';
-            } catch (fbErr) {
-                if (fbErr.message.includes('429') || fbErr.message.includes('rate limit')) {
+            } catch (error) {
+                console.warn(`❌ Failed chat with ${modelName}: ${error.message}`);
+                lastError = error;
+                if (error.message.includes('429') || error.message.includes('rate limit')) {
                     throw new Error(`RATE_LIMIT:60:${feature}`);
                 }
-                throw new Error(`AI_ERROR:${fbErr.message}`);
             }
         }
+        throw new Error(`AI_ERROR:${lastError?.message || 'All Gemini models failed'}`);
     }
 
     console.log(`🔑 Using ${feature} chat with Groq AI`);
@@ -387,30 +379,21 @@ export const generateJSONFeedback = async (prompt, feature = 'MOCK_INTERVIEW') =
     if (isGeminiKey(apiKey)) {
         console.log(`🎯 Generating JSON feedback with Gemini for ${feature}`);
         const genAI = new GoogleGenerativeAI(apiKey);
-        const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+        const models = getGeminiCandidateModels();
         const jsonPrompt = `${prompt}\n\nIMPORTANT: Return valid raw JSON object only. Do not include markdown formatting or codeblocks.`;
-        try {
-            let model;
+
+        for (const modelName of models) {
             try {
-                model = genAI.getGenerativeModel({ model: modelName });
-            } catch (e) {
-                model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const res = await model.generateContent(jsonPrompt);
+                let text = res.response.text();
+                text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) text = jsonMatch[0];
+                return JSON.parse(text);
+            } catch (err) {
+                console.warn(`❌ JSON feedback failed with ${modelName}: ${err.message}`);
             }
-            const res = await model.generateContent(jsonPrompt);
-            let text = res.response.text();
-            text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) text = jsonMatch[0];
-            return JSON.parse(text);
-        } catch (err) {
-            console.error('❌ JSON feedback generation failed with Gemini, trying fallback:', err.message);
-            const fallback = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-            const res = await fallback.generateContent(jsonPrompt);
-            let text = res.response.text();
-            text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) text = jsonMatch[0];
-            return JSON.parse(text);
         }
     }
 
@@ -452,7 +435,7 @@ export const generateJSONFeedback = async (prompt, feature = 'MOCK_INTERVIEW') =
 /**
  * Generate Quiz from Document Content using Gemini
  */
-export const generateQuizService = async (file, numQuestions = 5) => {
+export const generateQuizService = async (file, numQuestions = 5, customSubject = '') => {
     try {
         let textContent = '';
 
@@ -471,31 +454,22 @@ export const generateQuizService = async (file, numQuestions = 5) => {
         }
 
         // Limit text content for simple RAG (Context Stuffing)
-        // Gemini 1.5 Flash has a large context window, but let's be safe/efficient
         const MAX_CONTEXT_CHARS = 30000;
         if (textContent.length > MAX_CONTEXT_CHARS) {
             textContent = textContent.substring(0, MAX_CONTEXT_CHARS) + " ...[truncated]";
         }
 
         // 2. Call Gemini API
-        // Use the Gemini/Quiz key or fall back to default
         const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || FEATURE_KEYS.QUIZ || FEATURE_KEYS.DEFAULT;
         if (!apiKey) throw new Error('No API Key configured for Quiz generation');
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        // Use user-specified model or default
-        const modelName = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-        console.log(`Using Gemini Model: ${modelName}`);
-        let model;
-        try {
-            model = genAI.getGenerativeModel({ model: modelName });
-        } catch (mErr) {
-            console.warn(`Failed to initialize ${modelName}, falling back to gemini-flash-latest:`, mErr.message);
-            model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-        }
+        const modelsToTry = getGeminiCandidateModels();
+
+        const subjectFocus = customSubject ? ` Focus specifically on the topic/subject: "${customSubject}".` : '';
 
         const prompt = `
-        You are an expert educational assistant. Create a multiple-choice quiz based ONLY on the following text.
+        You are an expert educational assistant. Create a multiple-choice quiz based ONLY on the following text.${subjectFocus}
         
         Text Content:
         "${textContent}"
@@ -519,16 +493,27 @@ export const generateQuizService = async (file, numQuestions = 5) => {
         `;
 
         let text = '';
-        try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            text = response.text();
-        } catch (genErr) {
-            console.warn(`Generation failed with ${modelName}, trying gemini-flash-latest:`, genErr.message);
-            const fallbackModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-            const result = await fallbackModel.generateContent(prompt);
-            const response = await result.response;
-            text = response.text();
+        let lastError = null;
+
+        for (const modelName of modelsToTry) {
+            try {
+                console.log(`🤖 Generating quiz with Gemini (${modelName})...`);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                text = response.text() || '';
+                if (text) {
+                    console.log(`✅ Success generating quiz with Gemini (${modelName})`);
+                    break;
+                }
+            } catch (genErr) {
+                console.warn(`⚠️ Quiz generation attempt failed with ${modelName}: ${genErr.message}`);
+                lastError = genErr;
+            }
+        }
+
+        if (!text) {
+            throw lastError || new Error('All Gemini models failed for quiz generation');
         }
 
         // Cleanup markdown if present
@@ -538,7 +523,13 @@ export const generateQuizService = async (file, numQuestions = 5) => {
             text = jsonMatch[0];
         }
 
-        return JSON.parse(text);
+        const questions = JSON.parse(text);
+        const detectedTopic = customSubject || file.originalname.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ') || 'Generated Quiz';
+
+        return {
+            subject: detectedTopic,
+            questions: questions
+        };
 
     } catch (error) {
         console.error('Quiz Generation Error:', error);
@@ -651,40 +642,27 @@ Output Format: Return ONLY a valid JSON array of objects conforming to the schem
         try {
             console.log(`🔮 Generating Predicted PYQs using Gemini for ${subject}...`);
             const genAI = new GoogleGenerativeAI(apiKey);
-            const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-            let model;
-            try {
-                model = genAI.getGenerativeModel({ model: modelName });
-            } catch (e) {
-                model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-            }
+            const models = getGeminiCandidateModels();
 
-            let text = '';
-            try {
-                const result = await withTimeout(model.generateContent(systemInstruction), 10000);
-                const response = await result.response;
-                text = response.text() || '';
-            } catch (firstErr) {
-                console.warn(`Gemini attempt failed (${firstErr.message}), trying gemini-1.5-flash...`);
+            for (const modelName of models) {
                 try {
-                    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                    const result = await withTimeout(fallbackModel.generateContent(systemInstruction), 8000);
+                    const model = genAI.getGenerativeModel({ model: modelName });
+                    const result = await withTimeout(model.generateContent(systemInstruction), 10000);
                     const response = await result.response;
-                    text = response.text() || '';
-                } catch (fbErr) {
-                    console.warn(`Gemini fallback also failed (${fbErr.message})`);
-                }
-            }
-
-            if (text) {
-                text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-                const jsonMatch = text.match(/\[[\s\S]*\]/);
-                if (jsonMatch) {
-                    const parsed = JSON.parse(jsonMatch[0]);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        console.log(`✅ Successfully predicted ${parsed.length} PYQs with Gemini`);
-                        return parsed;
+                    let text = response.text() || '';
+                    if (text) {
+                        text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        const jsonMatch = text.match(/\[[\s\S]*\]/);
+                        if (jsonMatch) {
+                            const parsed = JSON.parse(jsonMatch[0]);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                console.log(`✅ Successfully predicted ${parsed.length} PYQs with Gemini (${modelName})`);
+                                return parsed;
+                            }
+                        }
                     }
+                } catch (firstErr) {
+                    console.warn(`Gemini attempt failed (${modelName}): ${firstErr.message}`);
                 }
             }
         } catch (geminiError) {

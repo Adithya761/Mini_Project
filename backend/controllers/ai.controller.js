@@ -59,9 +59,10 @@ export const generateQuiz = async (req, res) => {
         }
 
         const numQuestions = parseInt(req.body.numQuestions) || 5;
+        const customSubject = (req.body.custom_subject || '').trim();
 
-        // Use local RAG if enabled, otherwise cloud
-        const useLocal = req.body.useLocal !== 'false'; // Default to true for this task integration
+        // Use local RAG only when explicitly requested
+        const useLocal = req.body.useLocal === 'true';
 
         let quiz;
         if (useLocal) {
@@ -69,13 +70,13 @@ export const generateQuiz = async (req, res) => {
             try {
                 quiz = await ai.generateQuizLocal(req.file, numQuestions);
             } catch (localError) {
-                console.warn('⚠️ Local RAG failed (likely OOM), falling back to Cloud RAG:', localError.message);
+                console.warn('⚠️ Local RAG unavailable, falling back to Cloud AI:', localError.message);
                 console.log(`☁️ Falling back to CLOUD generation for ${req.file.originalname}`);
-                quiz = await ai.generateQuizService(req.file, numQuestions);
+                quiz = await ai.generateQuizService(req.file, numQuestions, customSubject);
             }
         } else {
             console.log(`📝 Generating quiz via CLOUD from ${req.file.originalname}`);
-            quiz = await ai.generateQuizService(req.file, numQuestions);
+            quiz = await ai.generateQuizService(req.file, numQuestions, customSubject);
         }
 
         res.json(quiz);
