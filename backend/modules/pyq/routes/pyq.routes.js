@@ -5,6 +5,7 @@ import * as authMiddleware from '../../../middlewares/auth.middleware.js';
 // Modular controllers
 import { introducePYQ } from '../controllers/introducePYQ.controller.js';
 import { bulkIntroducePYQ } from '../controllers/bulkIntroducePYQ.controller.js';
+import { checkDuplicatePYQ } from '../controllers/checkDuplicatePYQ.controller.js';
 import { getPYQs, getPYQById } from '../controllers/getPYQs.controller.js';
 import { getSubjects } from '../controllers/getSubjects.controller.js';
 import { predictPYQ } from '../controllers/predictPYQ.controller.js';
@@ -28,8 +29,11 @@ const optionalAuth = (req, res, next) => {
 };
 
 // ========================================================
-// PORTAL QUESTION INTRODUCTION ROUTES
+// PORTAL QUESTION INTRODUCTION & DUPLICATE CHECK ROUTES
 // ========================================================
+// Check duplicate before submission (read-only)
+router.post('/check-duplicate', authMiddleware.authUser, checkDuplicatePYQ);
+
 // Introduce a single question from the portal
 router.post('/introduce', authMiddleware.authUser, introducePYQ);
 // Also support POST / for backward compatibility

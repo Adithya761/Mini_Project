@@ -1,19 +1,24 @@
+import crypto from 'crypto';
 import PYQ from '../../../models/pyq.model.js';
+import { validateQuestionInput, detectDuplicates } from '../../../services/pyqDuplicate.service.js';
 
-/**
- * Normalizes question text for duplicate detection
- */
-function normalizeQuestionText(text) {
-    return (text || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
+function hashText(text) {
+    const norm = (text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return crypto.createHash('md5').update(norm).digest('hex').substring(0, 12);
 }
 
 /**
- * Introduce a single Previous Year Question from the Portal
- * 
- * Enforces strict validation, duplicate detection, and explicit
- * origin: 'STUDENT_SUBMITTED' / reviewStatus: 'PENDING'
+ * Introduce a single Previous Year Question from the Student Portal.
+ *
+ * Enforces:
+ * 1. Strict server-side validation against established rules.
+ * 2. Exact duplicate prevention and TF-IDF cosine near-duplicate detection.
+ * 3. Immutable student submission provenance:
+ *    - origin: 'STUDENT_SUBMITTED'
+ *    - reviewStatus: 'PENDING'
+ *    - isVerified: false
+ *    - isPredicted: false
+ * 4. Exclusion of pending questions from historical recurrence until approved.
  */
 export const introducePYQ = async (req, res) => {
     try {
@@ -32,107 +37,132 @@ export const introducePYQ = async (req, res) => {
             bloomLevel,
             solution,
             difficulty,
-            tags
+            tags,
+            confirmedDistinct = false
         } = req.body;
 
-        // 1. Validation
-        if (!subject || typeof subject !== 'string' || subject.trim().length < 2) {
-            return res.status(400).json({ error: 'Valid subject name is required (minimum 2 characters)' });
-        }
+        const currentUserId = req.user?._id || req.user?.id || req.user?.userId;
 
-        const trimmedQuestion = (question || '').trim();
-        if (!trimmedQuestion || trimmedQuestion.length < 15) {
-            return res.status(400).json({ error: 'Question statement is too short. Please provide a complete examination question statement (minimum 15 characters).' });
-        }
-
-        const currentYear = new Date().getFullYear();
-        const parsedYear = parseInt(year);
-        if (isNaN(parsedYear) || parsedYear < 1990 || parsedYear > currentYear + 2) {
-            return res.status(400).json({ error: `Exam year must be a valid year between 1990 and ${currentYear + 2}` });
-        }
-
-        const parsedMarks = parseInt(marks);
-        if (isNaN(parsedMarks) || parsedMarks < 1 || parsedMarks > 30) {
-            return res.status(400).json({ error: 'Marks must be an integer between 1 and 30' });
-        }
-
-        const validDifficulties = ['Easy', 'Medium', 'Hard'];
-        const normalizedDifficulty = validDifficulties.find(d => d.toLowerCase() === (difficulty || '').toLowerCase()) || 'Medium';
-
-        const validBloomLevels = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'];
-        let sanitizedBloom = null;
-        if (bloomLevel && validBloomLevels.includes(String(bloomLevel).toUpperCase().trim())) {
-            sanitizedBloom = String(bloomLevel).toUpperCase().trim();
-        }
-
-        // Process Course Outcomes (CO1..CO6)
-        let sanitizedCOs = [];
-        if (Array.isArray(courseOutcomes)) {
-            sanitizedCOs = courseOutcomes.map(c => String(c).toUpperCase().trim()).filter(c => /^CO[1-6]$/i.test(c));
-        } else if (typeof courseOutcomes === 'string' && courseOutcomes.trim()) {
-            sanitizedCOs = courseOutcomes.split(',').map(c => c.toUpperCase().trim()).filter(c => /^CO[1-6]$/i.test(c));
-        }
-
-        // Process Tags
-        let processedTags = [];
-        if (Array.isArray(tags)) {
-            processedTags = tags.map(t => String(t).trim()).filter(Boolean);
-        } else if (typeof tags === 'string' && tags.trim()) {
-            processedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
-        }
-
-        // 2. Duplicate Detection
-        // Check if an identical or near-identical question statement already exists in the same subject
-        const normalizedInput = normalizeQuestionText(trimmedQuestion);
-        const subjectRegex = new RegExp(`^${subject.trim()}$`, 'i');
-
-        const existingSubjectQuestions = await PYQ.find({
-            subject: subjectRegex
-        }).select('question year examType').lean();
-
-        const isDuplicate = existingSubjectQuestions.some(existing => {
-            const normExisting = normalizeQuestionText(existing.question);
-            return normExisting === normalizedInput;
+        // 1. Validate fields and strip privileged mass-assignment
+        const validation = validateQuestionInput({
+            subject,
+            subjectCode,
+            year,
+            examType,
+            question,
+            questionNumber,
+            questionType,
+            marks,
+            unit,
+            topic,
+            courseOutcomes,
+            bloomLevel,
+            solution,
+            difficulty,
+            tags
         });
 
-        if (isDuplicate) {
-            return res.status(409).json({
-                error: `Duplicate question detected! This exact question statement already exists in the question bank for "${subject.trim()}".`
+        if (!validation.isValid) {
+            return res.status(400).json({
+                error: validation.errors[0] || 'Invalid question parameters',
+                validationErrors: validation.errors
             });
         }
 
-        // 3. Create Record with Explicit Provenance and Pending Review
+        const sanitized = validation.sanitized;
+        const qHash = hashText(sanitized.question);
+        const paperQuestionKey = `STUDENT_${qHash}`;
+
+        // 2. Server-side Duplicate Detection immediately before insertion
+        const duplicateCheck = await detectDuplicates({
+            subject: sanitized.subject,
+            question: sanitized.question
+        });
+
+        // Exact Duplicate: Hard rejection
+        if (duplicateCheck.status === 'EXACT_DUPLICATE') {
+            return res.status(409).json({
+                error: `Duplicate question detected! This exact question statement already exists in the question bank for "${sanitized.subject}".`,
+                status: 'EXACT_DUPLICATE',
+                isDuplicate: true,
+                matches: duplicateCheck.matches
+            });
+        }
+
+        // Near Duplicate: Require explicit student confirmation
+        if (duplicateCheck.status === 'LIKELY_NEAR_DUPLICATE' && !confirmedDistinct) {
+            return res.status(409).json({
+                error: 'A likely near-duplicate question was found in the question bank. Please review the matches before submitting.',
+                status: 'LIKELY_NEAR_DUPLICATE',
+                requiresConfirmation: true,
+                matches: duplicateCheck.matches
+            });
+        }
+
+        // 3. Prevent Race-Condition Insertion (Double Clicks)
+        const raceExisting = await PYQ.findOne({
+            subject: new RegExp(`^${sanitized.subject}$`, 'i'),
+            $or: [
+                { paperQuestionKey },
+                { question: sanitized.question }
+            ]
+        }).lean();
+
+        if (raceExisting) {
+            return res.status(409).json({
+                error: `Duplicate question detected! This question is already saved in the database.`,
+                status: 'EXACT_DUPLICATE',
+                isDuplicate: true,
+                matches: [{
+                    id: String(raceExisting._id),
+                    question: raceExisting.question,
+                    subject: raceExisting.subject,
+                    year: raceExisting.year,
+                    examType: raceExisting.examType,
+                    marks: raceExisting.marks
+                }]
+            });
+        }
+
+        // 4. Create and persist record with strictly enforced student provenance
+        const reasoningText = confirmedDistinct
+            ? 'Submitted by student with confirmation of distinction despite potential near-duplicate similarity'
+            : 'Submitted via Student Portal, pending faculty review';
+
         const newPYQ = new PYQ({
-            subject: subject.trim(),
-            subjectCode: (subjectCode || '').trim(),
-            year: parsedYear,
-            examType: (examType || 'End-Sem').trim(),
-            question: trimmedQuestion,
-            questionNumber: (questionNumber || '').trim(),
-            questionType: (questionType || 'Subjective').trim(),
-            marks: parsedMarks,
-            unit: (unit || 'Unit 1').trim(),
-            topic: (topic || 'General').trim(),
-            solution: (solution || '').trim(),
-            difficulty: normalizedDifficulty,
-            courseOutcomes: sanitizedCOs,
-            bloomLevel: sanitizedBloom,
+            subject: sanitized.subject,
+            subjectCode: sanitized.subjectCode,
+            year: sanitized.year,
+            examType: sanitized.examType,
+            question: sanitized.question,
+            questionNumber: sanitized.questionNumber,
+            questionType: sanitized.questionType,
+            marks: sanitized.marks,
+            unit: sanitized.unit,
+            topic: sanitized.topic,
+            solution: sanitized.solution,
+            difficulty: sanitized.difficulty,
+            courseOutcomes: sanitized.courseOutcomes,
+            bloomLevel: sanitized.bloomLevel,
+            tags: sanitized.tags,
             origin: 'STUDENT_SUBMITTED',
             reviewStatus: 'PENDING',
             isVerified: false,
             isPredicted: false,
             frequency: 1,
-            tags: processedTags,
-            addedBy: req.user?._id || req.user?.userId
+            predictionReasoning: reasoningText,
+            paperQuestionKey,
+            addedBy: currentUserId
         });
 
         await newPYQ.save();
 
         res.status(201).json({
-            message: `Question submitted for faculty review! Your submission for "${subject.trim()}" is marked as PENDING and will be reviewed before inclusion in historical repetition analysis.`,
+            message: `Question submitted for faculty review! Your submission for "${sanitized.subject}" is marked as PENDING and will be reviewed before inclusion in historical repetition analysis.`,
             pyq: newPYQ,
             reviewStatus: 'PENDING',
-            origin: 'STUDENT_SUBMITTED'
+            origin: 'STUDENT_SUBMITTED',
+            isVerified: false
         });
     } catch (error) {
         console.error('Error introducing PYQ from portal:', error);

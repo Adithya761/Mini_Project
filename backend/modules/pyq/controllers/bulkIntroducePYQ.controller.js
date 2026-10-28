@@ -11,14 +11,17 @@ function normalizeQuestionText(text) {
 
 /**
  * Bulk introduce multiple Previous Year Questions from the Portal (Batch Ingestion)
- * 
+ *
  * Enforces validation, duplicate detection (both internal to batch and DB),
- * and marks all records as origin: 'STUDENT_SUBMITTED', reviewStatus: 'PENDING'.
+ * and sets provenance appropriately based on user role:
+ * - Admin users: Allowed to import historical batches with explicit origin / reviewStatus
+ * - Students: Strictly enforced origin: 'STUDENT_SUBMITTED', reviewStatus: 'PENDING', isVerified: false
  */
 export const bulkIntroducePYQ = async (req, res) => {
     try {
         const { questions, defaultSubject, defaultYear, defaultExamType } = req.body;
-        const currentUserId = req.user?._id || req.user?.userId;
+        const currentUserId = req.user?._id || req.user?.id || req.user?.userId;
+        const isAdmin = req.user?.role === 'admin';
 
         if (!questions || !Array.isArray(questions) || questions.length === 0) {
             return res.status(400).json({ error: 'Please provide an array of questions to introduce' });
@@ -90,6 +93,11 @@ export const bulkIntroducePYQ = async (req, res) => {
             const parsedMarks = parseInt(item.marks) || 5;
             const difficulty = validDifficulties.find(d => d.toLowerCase() === (item.difficulty || '').toLowerCase()) || 'Medium';
 
+            // Provenance configuration based on authorization
+            const origin = isAdmin && item.origin ? item.origin : 'STUDENT_SUBMITTED';
+            const reviewStatus = isAdmin && item.reviewStatus ? item.reviewStatus : 'PENDING';
+            const isVerified = isAdmin && typeof item.isVerified === 'boolean' ? item.isVerified : false;
+
             validQuestions.push({
                 subject,
                 subjectCode: (item.subjectCode || '').trim(),
@@ -105,9 +113,9 @@ export const bulkIntroducePYQ = async (req, res) => {
                 difficulty,
                 courseOutcomes: sanitizedCOs,
                 bloomLevel: sanitizedBloom,
-                origin: 'STUDENT_SUBMITTED',
-                reviewStatus: 'PENDING',
-                isVerified: false,
+                origin,
+                reviewStatus,
+                isVerified,
                 isPredicted: false,
                 frequency: 1,
                 tags,
@@ -123,15 +131,19 @@ export const bulkIntroducePYQ = async (req, res) => {
 
         const inserted = await PYQ.insertMany(validQuestions);
 
+        const statusMessage = isAdmin
+            ? `Successfully ingested ${inserted.length} question(s)! (Duplicates skipped: ${dbDuplicatesCount + internalDuplicatesCount}).`
+            : `Successfully submitted ${inserted.length} question(s) for faculty review! (Marked as PENDING approval; duplicates skipped: ${dbDuplicatesCount + internalDuplicatesCount}).`;
+
         res.status(201).json({
-            message: `Successfully submitted ${inserted.length} questions for faculty review! (Marked as PENDING approval; duplicates skipped: ${dbDuplicatesCount + internalDuplicatesCount}).`,
+            message: statusMessage,
             count: inserted.length,
             insertedCount: inserted.length,
             dbDuplicatesSkipped: dbDuplicatesCount,
             batchDuplicatesSkipped: internalDuplicatesCount,
             malformedSkipped: malformedCount,
-            reviewStatus: 'PENDING',
-            origin: 'STUDENT_SUBMITTED'
+            reviewStatus: isAdmin ? 'PROCESSED' : 'PENDING',
+            origin: isAdmin ? 'BATCH_IMPORT' : 'STUDENT_SUBMITTED'
         });
     } catch (error) {
         console.error('Error bulk introducing PYQs from portal:', error);

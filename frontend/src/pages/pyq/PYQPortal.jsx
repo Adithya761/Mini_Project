@@ -33,6 +33,12 @@ const PYQPortal = ({ onQuestionAdded, existingSubjects = [] }) => {
     tags: ''
   });
 
+  // Duplicate Detection & Validation State
+  const [duplicateResult, setDuplicateResult] = useState(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+  const [confirmedDistinct, setConfirmedDistinct] = useState(false);
+  const [validationErrors, setValidationErrors] = useState([]);
+
   // Bulk Ingestion State
   const [bulkInput, setBulkInput] = useState('');
   const [parsedBulkQuestions, setParsedBulkQuestions] = useState([]);
@@ -93,6 +99,58 @@ const PYQPortal = ({ onQuestionAdded, existingSubjects = [] }) => {
     }
   }, [existingSubjects]);
 
+  // Check for duplicates before submission (Read-only)
+  const handleCheckDuplicate = async () => {
+    const finalSubject = formData.subject === 'Custom' ? formData.customSubject.trim() : formData.subject.trim();
+    const errors = [];
+    if (!finalSubject) errors.push('Please specify a subject name.');
+    if (!formData.question.trim()) {
+      errors.push('Question statement is required.');
+    } else if (formData.question.trim().length < 15) {
+      errors.push('Question statement must be at least 15 characters long.');
+    }
+
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      showToast(errors[0]);
+      return null;
+    }
+
+    setValidationErrors([]);
+    setIsCheckingDuplicate(true);
+    try {
+      const res = await axios.post('/pyq/check-duplicate', {
+        subject: finalSubject,
+        question: formData.question.trim(),
+        year: parseInt(formData.year) || new Date().getFullYear(),
+        marks: parseInt(formData.marks) || 5,
+        unit: formData.unit.trim(),
+        topic: formData.topic.trim(),
+        difficulty: formData.difficulty
+      });
+
+      setDuplicateResult(res.data);
+      if (res.data.status === 'EXACT_DUPLICATE') {
+        showToast('⚠️ Exact duplicate detected in question bank!');
+      } else if (res.data.status === 'LIKELY_NEAR_DUPLICATE') {
+        showToast('🔍 Potential near-duplicate(s) detected. Please review matches.');
+      } else {
+        showToast('✅ Question verified unique! Ready to submit.');
+      }
+      return res.data;
+    } catch (err) {
+      console.error('Error checking duplicate:', err);
+      const errMsg = err.response?.data?.message || err.response?.data?.error || 'Failed to check duplicates';
+      showToast(errMsg);
+      if (err.response?.data?.validationErrors) {
+        setValidationErrors(err.response.data.validationErrors);
+      }
+      return null;
+    } finally {
+      setIsCheckingDuplicate(false);
+    }
+  };
+
   // Handle Single Question Submission
   const handleSingleSubmit = async (e) => {
     e.preventDefault();
@@ -105,6 +163,23 @@ const PYQPortal = ({ onQuestionAdded, existingSubjects = [] }) => {
 
     if (!formData.question.trim() || formData.question.trim().length < 15) {
       showToast('Question statement must be at least 15 characters long');
+      return;
+    }
+
+    // Step: Run duplicate check if student hasn't clicked check yet
+    let dupCheck = duplicateResult;
+    if (!dupCheck) {
+      dupCheck = await handleCheckDuplicate();
+      if (!dupCheck) return; // Validation error
+    }
+
+    if (dupCheck.status === 'EXACT_DUPLICATE') {
+      showToast('❌ Cannot submit: Exact duplicate already exists in the question bank.');
+      return;
+    }
+
+    if (dupCheck.status === 'LIKELY_NEAR_DUPLICATE' && !confirmedDistinct) {
+      showToast('⚠️ Please review potential duplicates and confirm distinction before submitting.');
       return;
     }
 
@@ -125,13 +200,14 @@ const PYQPortal = ({ onQuestionAdded, existingSubjects = [] }) => {
         courseOutcomes: formData.courseOutcomes,
         bloomLevel: formData.bloomLevel || undefined,
         solution: formData.solution.trim(),
-        tags: formData.tags
+        tags: formData.tags,
+        confirmedDistinct
       };
 
       const res = await axios.post('/pyq/introduce', payload);
       showToast(res.data?.message || 'Question submitted for review! (Status: PENDING)');
 
-      // Reset question, solution, and outcomes, keep subject & year for easy next entry
+      // Reset form state
       setFormData(prev => ({
         ...prev,
         question: '',
@@ -142,12 +218,35 @@ const PYQPortal = ({ onQuestionAdded, existingSubjects = [] }) => {
         bloomLevel: '',
         tags: ''
       }));
+      setDuplicateResult(null);
+      setConfirmedDistinct(false);
+      setValidationErrors([]);
 
       fetchPortalStats();
       if (onQuestionAdded) onQuestionAdded();
     } catch (err) {
       console.error('Error introducing question:', err);
-      showToast(err.response?.data?.error || 'Failed to introduce question');
+      const data = err.response?.data;
+      if (data?.status === 'EXACT_DUPLICATE') {
+        setDuplicateResult({
+          status: 'EXACT_DUPLICATE',
+          isDuplicate: true,
+          message: data.error,
+          matches: data.matches || []
+        });
+        showToast('❌ Exact duplicate detected in bank.');
+      } else if (data?.status === 'LIKELY_NEAR_DUPLICATE') {
+        setDuplicateResult({
+          status: 'LIKELY_NEAR_DUPLICATE',
+          requiresReview: true,
+          message: data.error,
+          matches: data.matches || []
+        });
+        showToast('⚠️ Likely near-duplicate found. Confirmation required.');
+      } else {
+        showToast(data?.error || 'Failed to introduce question');
+        if (data?.validationErrors) setValidationErrors(data.validationErrors);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -561,19 +660,159 @@ const PYQPortal = ({ onQuestionAdded, existingSubjects = [] }) => {
                 </div>
               </div>
 
-              {/* Question Statement */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Question Statement *
-                </label>
+              {/* Question Statement & Inline Duplicate Inspection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Question Statement *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleCheckDuplicate}
+                    disabled={isCheckingDuplicate || !formData.question.trim()}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg transition-colors border border-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isCheckingDuplicate ? (
+                      <>
+                        <i className="ri-loader-4-line animate-spin text-sm"></i>
+                        <span>Scanning Bank...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="ri-search-eye-line text-sm"></i>
+                        <span>Check for Duplicates</span>
+                      </>
+                    )}
+                  </button>
+                </div>
                 <textarea
                   rows="4"
                   required
                   placeholder="Enter the complete examination question statement with all requirements and sub-parts..."
                   value={formData.question}
-                  onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, question: e.target.value });
+                    if (duplicateResult) setDuplicateResult(null);
+                    if (confirmedDistinct) setConfirmedDistinct(false);
+                    if (validationErrors.length) setValidationErrors([]);
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 leading-relaxed"
                 ></textarea>
+
+                {/* Validation Errors Alert */}
+                {validationErrors.length > 0 && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-700 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5">
+                      <i className="ri-error-warning-fill text-sm"></i> Please address the following issues:
+                    </div>
+                    <ul className="list-disc pl-5 space-y-0.5">
+                      {validationErrors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Duplicate Analysis Outcome Card */}
+                {duplicateResult && (
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    duplicateResult.status === 'EXACT_DUPLICATE'
+                      ? 'bg-rose-50 border-rose-200 text-rose-900'
+                      : duplicateResult.status === 'LIKELY_NEAR_DUPLICATE'
+                      ? 'bg-amber-50 border-amber-200 text-amber-900'
+                      : duplicateResult.status === 'POSSIBLE_RELATED'
+                      ? 'bg-blue-50 border-blue-200 text-blue-900'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  }`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <i className={`text-lg mt-0.5 ${
+                          duplicateResult.status === 'EXACT_DUPLICATE'
+                            ? 'ri-close-circle-fill text-rose-600'
+                            : duplicateResult.status === 'LIKELY_NEAR_DUPLICATE'
+                            ? 'ri-alert-fill text-amber-600'
+                            : duplicateResult.status === 'POSSIBLE_RELATED'
+                            ? 'ri-information-fill text-blue-600'
+                            : 'ri-checkbox-circle-fill text-emerald-600'
+                        }`}></i>
+                        <div>
+                          <h4 className="font-bold text-xs">
+                            {duplicateResult.status === 'EXACT_DUPLICATE' && 'Exact Duplicate Detected (Insertion Blocked)'}
+                            {duplicateResult.status === 'LIKELY_NEAR_DUPLICATE' && 'Potential Near-Duplicate(s) Detected'}
+                            {duplicateResult.status === 'POSSIBLE_RELATED' && 'Related Topic Question(s) Found (Distinct)'}
+                            {duplicateResult.status === 'NO_DUPLICATE' && 'Verified Unique Question! Ready for Submission'}
+                          </h4>
+                          <p className="text-xs mt-0.5 opacity-90 leading-relaxed">
+                            {duplicateResult.message}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border bg-white/60">
+                        {duplicateResult.status}
+                      </span>
+                    </div>
+
+                    {/* Matched Questions Preview */}
+                    {duplicateResult.matches && duplicateResult.matches.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-current/15 space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">
+                          Existing Question Matches ({duplicateResult.matches.length}):
+                        </span>
+                        {duplicateResult.matches.map((m, idx) => (
+                          <div key={idx} className="p-3 bg-white/80 backdrop-blur-sm rounded-xl border border-current/10 space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                                  {m.subject} • {m.year} • {m.examType}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                                  {m.marks} Marks
+                                </span>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                m.similarityPercentage >= 95
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                  : m.similarityPercentage >= 80
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                  : 'bg-blue-100 text-blue-800 border border-blue-300'
+                              }`}>
+                                {m.similarityPercentage}% Match
+                              </span>
+                            </div>
+                            <p className="text-slate-800 font-medium leading-relaxed italic">
+                              "{m.question}"
+                            </p>
+                          </div>
+                        ))}
+
+                        {/* Near Duplicate Confirmation Action */}
+                        {duplicateResult.status === 'LIKELY_NEAR_DUPLICATE' && (
+                          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2">
+                            <p className="text-[11px] text-amber-900 font-medium">
+                              If your question asks for a fundamentally distinct concept or derivation, confirm distinction:
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmedDistinct(!confirmedDistinct);
+                                showToast(!confirmedDistinct ? '✓ Confirmed as distinct! You can now submit for review.' : 'Confirmation revoked.');
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 ${
+                                confirmedDistinct
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-amber-600 hover:bg-amber-700 text-white'
+                              }`}
+                            >
+                              <i className={confirmedDistinct ? "ri-check-line" : "ri-shield-check-line"}></i>
+                              <span>{confirmedDistinct ? '✓ Confirmed Distinct' : 'Confirm Distinct & Submit'}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Model Answer / Solution */}
@@ -609,18 +848,34 @@ const PYQPortal = ({ onQuestionAdded, existingSubjects = [] }) => {
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50"
+                  disabled={isSubmitting || isCheckingDuplicate || duplicateResult?.status === 'EXACT_DUPLICATE' || (duplicateResult?.status === 'LIKELY_NEAR_DUPLICATE' && !confirmedDistinct)}
+                  className={`w-full flex items-center justify-center gap-2 px-6 py-3.5 font-bold text-sm rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    duplicateResult?.status === 'EXACT_DUPLICATE'
+                      ? 'bg-slate-400 text-slate-100 cursor-not-allowed'
+                      : confirmedDistinct
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
+                  }`}
                 >
                   {isSubmitting ? (
                     <>
                       <i className="ri-loader-4-line animate-spin text-lg"></i>
-                      <span>Introducing to Bank...</span>
+                      <span>Submitting for Faculty Review...</span>
+                    </>
+                  ) : duplicateResult?.status === 'EXACT_DUPLICATE' ? (
+                    <>
+                      <i className="ri-forbid-line text-lg"></i>
+                      <span>Exact Duplicate - Insertion Blocked</span>
+                    </>
+                  ) : duplicateResult?.status === 'LIKELY_NEAR_DUPLICATE' && !confirmedDistinct ? (
+                    <>
+                      <i className="ri-error-warning-line text-lg"></i>
+                      <span>Review Potential Duplicates Above</span>
                     </>
                   ) : (
                     <>
                       <i className="ri-check-double-line text-lg"></i>
-                      <span>Introduce Question to Bank</span>
+                      <span>{confirmedDistinct ? 'Submit Distinct Question (Status: PENDING)' : 'Introduce Question to Bank (PENDING Review)'}</span>
                     </>
                   )}
                 </button>
@@ -678,6 +933,16 @@ const PYQPortal = ({ onQuestionAdded, existingSubjects = [] }) => {
                     </div>
                   </div>
                 )}
+
+                {/* Submission Provenance Preview */}
+                <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                    <i className="ri-user-star-line"></i> Origin: Student Submitted
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300 flex items-center gap-1">
+                    <i className="ri-time-line"></i> Status: Pending Faculty Review
+                  </span>
+                </div>
               </div>
             </div>
           </div>
