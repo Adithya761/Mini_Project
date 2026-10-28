@@ -17,6 +17,7 @@ import UserAuth from '../auth/userAuth';
 import Profile from '../screens/Profile';
 import QuizResultView from '../screens/QuizResultView';
 import PYQs from '../screens/PYQs';
+import OAPrep from '../screens/OAPrep';
 
 const AppRoutes = () => {
   return (
@@ -44,13 +45,15 @@ const AppRoutes = () => {
         <Route path="/pyq-portal" element={<UserAuth><PYQs /></UserAuth>} />
         <Route path="/predict-pyqs" element={<UserAuth><PYQs /></UserAuth>} />
 
+        {/* OA Prep Module (Online Assessment Practice) */}
+        <Route path="/oa-prep" element={<UserAuth><OAPrep /></UserAuth>} />
+
         {/* Interview Module */}
         <Route path="/interview" element={<UserAuth><Interview /></UserAuth>} />
 
         {/* Mock Interview Module */}
         <Route path="/mock-interview" element={<UserAuth><MockInterviewDashboard /></UserAuth>} />
         <Route path="/mock-interview/new" element={<UserAuth><NewMockInterview /></UserAuth>} />
-        <Route path="/mock-interview/session/:id" element={<UserAuth><MockInterviewSession /></UserAuth>} />
         <Route path="/mock-interview/session/:id" element={<UserAuth><MockInterviewSession /></UserAuth>} />
         <Route path="/mock-interview/feedback/:id" element={<UserAuth><MockInterviewFeedback /></UserAuth>} />
 

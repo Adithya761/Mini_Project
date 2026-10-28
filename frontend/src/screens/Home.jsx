@@ -35,9 +35,14 @@ const Home = () => {
       {/* Header */}
       <header className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Education Ecosystem</h1>
-            <p className="text-sm text-gray-500">Welcome, {user?.name || user?.email || 'User'}</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white shadow-md shadow-indigo-100">
+              <i className="ri-terminal-box-fill text-xl"></i>
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight text-gray-900">VOID PREP</h1>
+              <p className="text-xs text-gray-500 font-medium">Your preparation space for placements and technical interviews.</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <button
@@ -62,11 +67,11 @@ const Home = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Welcome Section */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Choose Your Learning Path
+          <h2 className="text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">
+            Choose Your Preparation Track
           </h2>
-          <p className="text-lg text-gray-600">
-            Select a module below to begin your educational journey
+          <p className="text-base text-gray-600 max-w-2xl mx-auto">
+            Select a module below to accelerate your placement readiness and technical assessment skills
           </p>
         </div>
 
@@ -138,23 +143,26 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Mock Interview Card */}
+          {/* OA Prep Card */}
           <div
-            onClick={() => navigate('/interview')}
-            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-orange-500 flex flex-col justify-between"
+            onClick={() => navigate('/oa-prep')}
+            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all cursor-pointer transform hover:-translate-y-2 border-t-4 border-amber-500 flex flex-col justify-between"
           >
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                <i className="ri-user-voice-line text-3xl text-orange-600"></i>
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4 relative">
+                <i className="ri-terminal-box-line text-3xl text-amber-600"></i>
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full text-[9px] text-white font-bold uppercase tracking-wider">
+                  New
+                </span>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Mock Interview</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">OA Prep</h3>
               <p className="text-gray-600 text-sm mb-4">
-                Practice interviews with AI interviewer and get instant feedback
+                Structured online assessment preparation across aptitude, CS core, algorithms, SQL, and design
               </p>
               <div className="flex flex-wrap gap-1.5 justify-center">
-                <span className="px-2.5 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">AI Interviewer</span>
-                <span className="px-2.5 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">Feedback</span>
-                <span className="px-2.5 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">Domains</span>
+                <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 rounded-full text-xs font-medium">Aptitude</span>
+                <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 rounded-full text-xs font-medium">CS Core</span>
+                <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 rounded-full text-xs font-medium">DSA & SQL</span>
               </div>
             </div>
           </div>

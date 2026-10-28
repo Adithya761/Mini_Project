@@ -53,8 +53,15 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2.5 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white shadow-md shadow-indigo-100">
+              <i className="ri-terminal-box-fill text-xl"></i>
+            </div>
+            <span className="text-2xl font-black tracking-tight text-gray-900">VOID PREP</span>
+          </div>
+          <p className="text-xs text-gray-500 font-medium mb-5">Your preparation space for placements and technical interviews.</p>
+          <h2 className="text-2xl font-bold text-gray-900">
             Create your account
           </h2>
         </div>

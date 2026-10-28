@@ -32,9 +32,9 @@ const LandingPage = () => {
             borderColor: 'border-green-500'
         },
         {
-            icon: 'ri-user-voice-line',
-            title: 'AI Mock Interviews',
-            description: 'Practice with an AI interviewer and receive instant, personalized feedback.',
+            icon: 'ri-terminal-box-line',
+            title: 'OA Prep',
+            description: 'Comprehensive online assessment preparation covering Aptitude, CS Fundamentals, DSA, SQL, and Low-Level Design.',
             color: 'text-orange-600',
             bgColor: 'bg-orange-100',
             borderColor: 'border-orange-500'
@@ -55,10 +55,12 @@ const LandingPage = () => {
             <nav className="fixed w-full bg-white/80 backdrop-blur-md z-50 shadow-sm border-b border-gray-100">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center gap-2">
-                            <i className="ri-brain-line text-2xl text-indigo-600"></i>
-                            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-                                Education Ecosystem
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white shadow-md shadow-indigo-100">
+                                <i className="ri-terminal-box-fill text-lg"></i>
+                            </div>
+                            <span className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                                VOID PREP
                             </span>
                         </div>
                         <div className="flex items-center gap-4">
@@ -99,13 +101,13 @@ const LandingPage = () => {
                         transition={{ duration: 0.5 }}
                     >
                         <span className="px-4 py-2 rounded-full bg-indigo-100 text-indigo-700 text-sm font-semibold mb-6 inline-block">
-                            🚀 Revolutionizing Online Learning
+                            🚀 Placement & Technical Assessment Space
                         </span>
                         <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-6 leading-tight">
-                            Your All-in-One Platform for <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500">Smart Learning</span>
+                            Your Preparation Space for <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-pink-500">Placements & Interviews</span>
                         </h1>
                         <p className="text-xl text-gray-600 mb-10 leading-relaxed max-w-2xl mx-auto">
-                            Elevate your education with AI-powered tools, collaborative spaces, and interactive practice sessions tailored just for you.
+                            VOID PREP equips you with past year examination blueprints, AI-driven question predictions, interactive practice spaces, and comprehensive online assessment preparation.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             {isLoggedIn ? (
@@ -162,12 +164,14 @@ const LandingPage = () => {
             {/* Footer */}
             <footer className="bg-white border-t border-gray-100 py-12">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <div className="flex items-center gap-2">
-                        <i className="ri-brain-line text-xl text-indigo-600"></i>
-                        <span className="text-lg font-bold text-gray-900">Education Ecosystem</span>
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-sm">
+                            <i className="ri-terminal-box-fill text-base"></i>
+                        </div>
+                        <span className="text-lg font-black tracking-tight text-gray-900">VOID PREP</span>
                     </div>
                     <p className="text-gray-500 text-sm">
-                        © {new Date().getFullYear()} Education Ecosystem. All rights reserved.
+                        © {new Date().getFullYear()} VOID PREP. All rights reserved.
                     </p>
                     <div className="flex gap-6">
                         <a href="#" className="text-gray-400 hover:text-indigo-600 transition-colors"><i className="ri-twitter-fill text-xl"></i></a>

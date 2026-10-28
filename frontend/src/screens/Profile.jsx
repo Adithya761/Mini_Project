@@ -67,7 +67,7 @@ const Profile = () => {
                     </div>
 
                     <button
-                        onClick={() => window.location.href = '/'}
+                        onClick={() => window.location.href = '/dashboard'}
                         className="ml-auto flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
                     >
                         <i className="ri-dashboard-line"></i>

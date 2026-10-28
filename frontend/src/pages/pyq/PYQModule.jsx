@@ -66,9 +66,9 @@ const PYQModule = () => {
               </div>
               <div>
                 <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 bg-clip-text text-transparent">
-                  PYQ Question Ecosystem
+                  PYQ Question Vault
                 </h1>
-                <p className="text-xs text-slate-500 font-medium">Question Introduction Portal & AI Predictor</p>
+                <p className="text-xs text-slate-500 font-medium">VOID PREP • Question Bank & AI Predictor</p>
               </div>
             </div>
           </div>
