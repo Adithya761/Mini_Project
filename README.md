@@ -1,4 +1,4 @@
-# PRE PAL - AI-Powered Collaborative Learning Platform
+# VOID PREP - AI-Powered Collaborative Learning Platform
 
 A modern learning and collaboration ecosystem built for students and teams to study together, generate practice materials, conduct mock interviews, and collaborate in real time.
 
@@ -18,7 +18,7 @@ This version of the project includes:
 
 ## Overview
 
-PRE PAL is designed to make learning collaborative and intelligent. Users can create or join study spaces, share files, chat live, draw together, generate quizzes, and practice interview questions using AI-powered features.
+VOID PREP is designed to make learning collaborative and intelligent. Users can create or join study spaces, share files, chat live, draw together, generate quizzes, and practice interview questions.
 
 The platform is structured as a modular ecosystem with a backend API, a frontend application, and supporting AI/document-processing components.
 
