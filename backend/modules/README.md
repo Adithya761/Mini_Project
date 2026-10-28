@@ -1,68 +1,117 @@
-# Education Ecosystem Modules
+# Backend Modules README
 
-This directory contains the modular architecture for the Education Ecosystem platform.
+This directory documents the modular architecture used by the backend of PRE PAL.
+
+## Overview
+
+The backend is organized into reusable feature modules that separate major business areas such as:
+- Study room / project collaboration
+- Quiz workflows
+- Mock interviews
+- PYQ management and processing
+
+While the legacy chat/project routes remain available for backward compatibility, the current architecture includes dedicated modules for newer features.
 
 ## Current Modules
 
-### 1. Chat Module (Legacy - Root Level)
-- **Location**: `routes/project.routes.js`, `controllers/project.controller.js`
-- **Status**: ✅ Fully Functional
-- **Features**:
-  - Real-time collaborative chat
-  - Public and private rooms
-  - Shared whiteboard
-  - AI-powered moderation
-  - AI assistant (@ai mentions)
-  - File sharing
-  - Message persistence
+### 1. Study Room / Project Module
+Location:
+- `backend/routes/project.routes.js`
+- `backend/controllers/project.controller.js`
+- `backend/models/project.model.js`
+- `backend/routes/studyroom.routes.js`
+- `backend/controllers/studyroom.controller.js`
+
+Responsibilities:
+- Create, join, and manage rooms
+- Public/private access control
+- Room ownership and participant moderation
+- Shared file operations
+- Real-time collaboration
 
 ### 2. Quiz Module
-- **Location**: `modules/quiz/`
-- **Status**: 🚧 Coming Soon
-- **Planned Features**:
-  - AI Quiz Generator from PDF (RAG-based)
-  - Multiple choice and open-ended questions
-  - Automatic grading
-  - Quiz history and analytics
-  - Difficulty levels
+Location:
+- `backend/modules/quiz/`
+
+Responsibilities:
+- Quiz creation and result tracking
+- Learning and assessment flows
+- Module-level route/controller separation
 
 ### 3. Interview Module
-- **Location**: `modules/interview/`
-- **Status**: 🚧 Coming Soon
-- **Planned Features**:
-  - AI Mock Interview
-  - Market difficulty-based questions
-  - Real-time feedback
-  - Interview history
-  - Performance analytics
+Location:
+- `backend/modules/interview/`
 
-## Architecture
+Responsibilities:
+- Mock interview sessions
+- Question generation
+- Feedback collection and evaluation
+- Session tracking and result retrieval
 
-All modules share:
-- **Authentication**: Centralized JWT-based auth (`/auth` routes)
-- **User Management**: Single User model
-- **Middleware**: Shared `authMiddleware`
-- **Database**: MongoDB with Mongoose
+### 4. PYQ Module
+Location:
+- `backend/modules/pyq/`
 
-## Adding New Modules
+Responsibilities:
+- Previous-year question import and management
+- Subject-based organization
+- Prediction and duplicate checks
+- Sample paper support
+- Academic document processing flows
 
-1. Create module directory: `modules/<module-name>/`
-2. Add routes in `modules/<module-name>/routes/`
-3. Add controllers in `modules/<module-name>/controllers/`
-4. Register routes in `app.js`
-5. Protect all routes with `authMiddleware.authUser`
+## Shared Backend Services
 
-Example:
-```javascript
-import moduleRoutes from './modules/<module-name>/routes/index.js';
-app.use('/<module-name>', moduleRoutes);
-```
+The application relies on central shared components:
+- `auth.middleware.js` for protected route access
+- `ai.services.js` for AI-powered logic
+- `hume.services.js` for voice-related AI features
+- `moderation.service.js` for inappropriate-content checks
+- `project.services.js` and related service layers for room/project logic
+- Mongoose models for persistence and data organization
+
+## Route Registration
+
+The main backend app registers routes in `backend/app.js`:
+- `/auth` for authentication
+- `/users` for user endpoints
+- `/project` for legacy project/chat flows
+- `/studyroom` for study room routes
+- `/quiz` for quiz endpoints
+- `/api/interview` for interview routes
+- `/pyq` and `/api/pyq` for PYQ APIs
+
+## Module Design Principles
+
+The module system is designed to:
+- keep feature logic separated by domain
+- support easier scaling and maintenance
+- preserve backward compatibility with older routes
+- simplify new feature integration
 
 ## Backward Compatibility
 
-The chat module (legacy) remains at root level for backward compatibility:
-- `/project/*` - Chat/room management
-- `/messages/*` - Message operations
-- Socket.io events remain unchanged
+Legacy routes remain available so older frontend code and older workflows continue to function while newer modules are being used.
 
-All existing frontend code continues to work without modifications.
+## Adding a New Module
+
+A typical module layout looks like:
+
+```text
+backend/modules/<module-name>/
+├── controllers/
+├── models/
+├── routes/
+└── services/
+```
+
+Recommended flow:
+1. Create the module folder
+2. Add route definitions
+3. Add controller logic
+4. Add model and service files if needed
+5. Register the module in `backend/app.js`
+6. Protect routes with auth middleware when needed
+
+## Notes
+
+This repository has evolved from a simpler collaboration app into a broader learning ecosystem. The modular backend architecture reflects that evolution and separates the platform into reusable feature domains.
