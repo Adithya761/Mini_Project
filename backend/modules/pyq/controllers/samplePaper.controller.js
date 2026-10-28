@@ -19,7 +19,8 @@ export const generateSamplePaper = async (req, res) => {
             requireCOCoverage,
             coDistribution,
             difficultyDistribution,
-            sectionConfigs
+            sectionConfigs,
+            seed
         } = req.body;
 
         if (!subject || !subject.trim()) {
@@ -36,7 +37,8 @@ export const generateSamplePaper = async (req, res) => {
             coDistribution: coDistribution || {},
             difficultyDistribution: difficultyDistribution || { Easy: 30, Medium: 50, Hard: 20 },
             sectionConfigs: Array.isArray(sectionConfigs) && sectionConfigs.length > 0 ? sectionConfigs : null,
-            userId: req.user?._id || req.user?.userId
+            userId: req.user?._id || req.user?.id || req.user?.userId,
+            seed: seed !== undefined ? parseInt(seed) : 42
         });
 
         res.json({
@@ -77,23 +79,26 @@ export const replaceQuestion = async (req, res) => {
 };
 
 /**
- * Save a generated sample paper to the user's dedicated sample_papers collection
+ * Save a generated sample paper to the dedicated sample_papers collection
  */
 export const saveSamplePaper = async (req, res) => {
     try {
         const paperData = req.body.samplePaper || req.body;
-        const userId = req.user?._id || req.user?.userId;
+        const userId = req.user?._id || req.user?.id || req.user?.userId;
 
         if (!userId) {
             return res.status(401).json({ error: 'Authentication required to save sample papers.' });
         }
 
         if (!paperData.subject || !paperData.sections || paperData.sections.length === 0) {
-            return res.status(400).json({ error: 'Invalid sample paper data.' });
+            return res.status(400).json({ error: 'Invalid sample paper data. Must contain subject and sections.' });
         }
 
+        // Clean any existing ID if resaving as new document
+        const { _id, createdAt, updatedAt, ...cleanData } = paperData;
+
         const newSamplePaper = new SamplePaper({
-            ...paperData,
+            ...cleanData,
             createdBy: userId,
             status: 'FINALIZED'
         });
@@ -101,7 +106,7 @@ export const saveSamplePaper = async (req, res) => {
         await newSamplePaper.save();
 
         res.status(201).json({
-            message: 'Sample paper saved successfully!',
+            message: 'Sample paper saved successfully to your dedicated archive!',
             samplePaper: newSamplePaper
         });
     } catch (error) {
@@ -115,7 +120,7 @@ export const saveSamplePaper = async (req, res) => {
  */
 export const getSavedSamplePapers = async (req, res) => {
     try {
-        const userId = req.user?._id || req.user?.userId;
+        const userId = req.user?._id || req.user?.id || req.user?.userId;
 
         if (!userId) {
             return res.status(401).json({ error: 'Authentication required to fetch saved sample papers.' });
@@ -140,10 +145,18 @@ export const getSavedSamplePapers = async (req, res) => {
  */
 export const getSamplePaperById = async (req, res) => {
     try {
+        const userId = req.user?._id || req.user?.id || req.user?.userId;
         const paper = await SamplePaper.findById(req.params.id).lean();
+
         if (!paper) {
             return res.status(404).json({ error: 'Sample paper not found.' });
         }
+
+        // Access check: if paper belongs to another user and requester is authenticated
+        if (paper.createdBy && String(paper.createdBy) !== String(userId) && req.user?.role !== 'admin') {
+            return res.status(403).json({ error: 'Unauthorized to view this private sample paper.' });
+        }
+
         res.json({ samplePaper: paper });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -151,21 +164,26 @@ export const getSamplePaperById = async (req, res) => {
 };
 
 /**
- * Delete a saved sample paper
+ * Delete a saved sample paper (Enforces ownership verification)
  */
 export const deleteSamplePaper = async (req, res) => {
     try {
-        const userId = req.user?._id || req.user?.userId;
+        const userId = req.user?._id || req.user?.id || req.user?.userId;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Authentication required to delete sample papers.' });
+        }
+
         const deleted = await SamplePaper.findOneAndDelete({
             _id: req.params.id,
             createdBy: userId
         });
 
         if (!deleted) {
-            return res.status(404).json({ error: 'Sample paper not found or unauthorized.' });
+            return res.status(404).json({ error: 'Sample paper not found or unauthorized to delete.' });
         }
 
-        res.json({ message: 'Sample paper deleted successfully.' });
+        res.json({ message: 'Sample paper deleted successfully from your collection.' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -176,6 +194,8 @@ export const deleteSamplePaper = async (req, res) => {
  */
 export const getBlueprintTemplates = (req, res) => {
     res.json({
-        templates: DEFAULT_EXAM_TEMPLATES
+        templates: Object.values(DEFAULT_EXAM_TEMPLATES),
+        templateMap: DEFAULT_EXAM_TEMPLATES
     });
 };
+

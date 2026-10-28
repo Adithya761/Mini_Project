@@ -47,9 +47,9 @@ const PYQModule = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800 print:bg-white">
       {/* Top Navbar */}
-      <header className="bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200 shadow-sm">
+      <header className="bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
           {/* Logo & Title */}
           <div className="flex items-center gap-3 w-full md:w-auto">
@@ -147,7 +147,7 @@ const PYQModule = () => {
       </header>
 
       {/* Main Content View */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full print:max-w-none print:p-0 print:m-0">
         {activeTab === 'portal' && (
           <PYQPortal
             existingSubjects={subjectsList}

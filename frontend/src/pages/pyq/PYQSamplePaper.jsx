@@ -38,6 +38,7 @@ const PYQSamplePaper = ({ existingSubjects = [] }) => {
   // Generator & Paper State
   const [generatedPaper, setGeneratedPaper] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState('');
   const [replacingKey, setReplacingKey] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -80,6 +81,7 @@ const PYQSamplePaper = ({ existingSubjects = [] }) => {
     }
 
     setIsGenerating(true);
+    setGenerationError('');
     try {
       const selectedTmpl = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
       const payload = {
@@ -88,6 +90,7 @@ const PYQSamplePaper = ({ existingSubjects = [] }) => {
         duration: `${durationMinutes} Minutes`,
         totalMarks: selectedTmpl.totalMarks,
         requireCOCoverage: Boolean(requireCOCoverage),
+        seed: Math.floor(Math.random() * 1000000),
         difficultyDistribution: difficultyPreference === 'Balanced'
           ? { Easy: 30, Medium: 50, Hard: 20 }
           : difficultyPreference === 'Easy-Leaning'
@@ -98,6 +101,7 @@ const PYQSamplePaper = ({ existingSubjects = [] }) => {
       const res = await axios.post('/pyq/sample-paper/generate', payload);
       if (res.data?.samplePaper) {
         setGeneratedPaper(res.data.samplePaper);
+        setGenerationError('');
         showToast('University Sample Paper generated successfully!');
       } else {
         showToast('Failed to generate sample paper', true);
@@ -105,6 +109,7 @@ const PYQSamplePaper = ({ existingSubjects = [] }) => {
     } catch (err) {
       console.error('Sample Paper generation error:', err);
       const apiErr = err.response?.data?.error || err.response?.data?.message || 'Failed to generate sample paper';
+      setGenerationError(apiErr);
       showToast(apiErr, true);
     } finally {
       setIsGenerating(false);
@@ -388,6 +393,17 @@ const PYQSamplePaper = ({ existingSubjects = [] }) => {
                     </span>
                   )}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* Validation / Generation Error Banner */}
+          {generationError && (
+            <div className="p-4 rounded-2xl text-xs flex items-start gap-3 border bg-rose-50 border-rose-200 text-rose-800">
+              <i className="ri-error-warning-fill text-lg text-rose-600 flex-shrink-0 mt-0.5"></i>
+              <div className="space-y-1">
+                <p className="font-bold">Blueprint Constraint Violation</p>
+                <p className="text-[11px] leading-relaxed">{generationError}</p>
               </div>
             </div>
           )}
